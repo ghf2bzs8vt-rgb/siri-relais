@@ -26,7 +26,7 @@ export default {
     let messages = Array.isArray(body.messages) ? body.messages.slice(-40) : [];
     messages = messages
       .filter(m => m && typeof m.content === "string" && ["system", "user", "assistant"].includes(m.role))
-      .map(m => ({ role: m.role, content: m.content.slice(0, 8000) }));
+      .map(m => ({ role: m.role, content: m.content.slice(0, 16000) }));
     if (!messages.length) return json({ error: "Message vide" }, 400);
 
     let last = "";

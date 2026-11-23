@@ -84,6 +84,37 @@ async function handleImage(env, body, json) {
   }
 }
 
+async function handleStt(env, body, json) {
+  const audio = typeof body.audio === "string" ? body.audio : "";
+  if (!audio || audio.length > 3500000) return json({ error: "Audio invalide ou trop long" }, 400);
+  try {
+    const out = await env.AI.run("@cf/openai/whisper-large-v3-turbo", {
+      audio: audio,
+      language: body.language === "en" ? "en" : "fr"
+    });
+    const text = String((out && (out.text || (out.result && out.result.text))) || "").trim();
+    return json({ text });
+  } catch (e) {
+    return json({ error: String((e && e.message) || e).slice(0, 200) }, 502);
+  }
+}
+
+async function handleTts(env, body, json) {
+  const text = String(body.text || "").trim().slice(0, 450);
+  if (!text) return json({ error: "Texte vide" }, 400);
+  try {
+    const out = await env.AI.run("@cf/myshell-ai/melotts", {
+      prompt: text,
+      lang: body.lang === "en" ? "en" : "fr"
+    });
+    const b64 = out && (typeof out === "string" ? out : out.audio);
+    if (!b64) return json({ error: "Pas d'audio: " + Object.keys(out || {}).join(",") }, 502);
+    return json({ audio: "data:audio/mpeg;base64," + b64 });
+  } catch (e) {
+    return json({ error: String((e && e.message) || e).slice(0, 200) }, 502);
+  }
+}
+
 export default {
   async fetch(req, env) {
     const origin = req.headers.get("Origin") || "";
@@ -108,6 +139,8 @@ export default {
 
     const path = new URL(req.url).pathname;
     if (path === "/image") return handleImage(env, body, json);
+    if (path === "/stt") return handleStt(env, body, json);
+    if (path === "/tts") return handleTts(env, body, json);
 
     const all = (Array.isArray(body.messages) ? body.messages : [])
       .filter(m => m && typeof m.content === "string" && ["system", "user", "assistant"].includes(m.role));
